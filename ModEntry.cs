@@ -109,8 +109,8 @@ namespace BenStardewValleyMod
             if (!Pet.TryGetData(Pet.type_cat, out PetData catsData)) 
                 return;
             int catBreedsCount = catsData.Breeds.Count;
-            var spawnedCat = new WildCat(tileX, tileY,
-                catsData.Breeds[Random.Shared.Next(0, catBreedsCount)].Id)
+            var spawnedCat = new Pet(tileX, tileY,
+                catsData.Breeds[Random.Shared.Next(0, catBreedsCount)].Id, Pet.type_cat)
             {
                 Name = "Wild Cat",
                 CurrentBehavior = Random.Shared.Next(0,2) > 0 ? Pet.behavior_Walk : Pet.behavior_SitDown,
