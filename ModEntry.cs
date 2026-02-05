@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework;
+﻿using HarmonyLib;
+using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -9,12 +10,24 @@ namespace StrayCatsStardewValleyMod
 {
     public class ModEntry : StardewModdingAPI.Mod
     {
+        public static ModEntry Instance { get; private set; } = null!;
+
+        public static void Log(string message, LogLevel level = LogLevel.Info)
+        {
+            // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+            if (Instance == null) return;
+            if (!Instance.debugLogging) return;
+            Instance.Monitor.Log(message, level);
+        }
+        
+        private bool debugLogging = false;
         protected int catSpawnIntervalGameMinutes = 25;
         protected int lastCatSpawnTimeGameMinute = 0;
         protected List<NPC> temporaryCats = new List<NPC>();
 
         public override void Entry(IModHelper helper)
         {
+            Instance = this;
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.GameLoop.UpdateTicked += this.OnTick;
             helper.Events.GameLoop.DayEnding += this.OnDayEnd;
@@ -24,7 +37,19 @@ namespace StrayCatsStardewValleyMod
                 "spawns a cat outside the viewport", 
                 SpawnCatConsoleCommand);
             
-            Monitor.Log($"Night Cat Mod initialized");
+            ApplyPatches();
+            
+            Log($"Night Cat Mod initialized");
+        }
+
+        private void ApplyPatches()
+        {
+            // patch to fix bug where stray cats teleport into the house
+            var harmony = new Harmony(this.ModManifest.UniqueID);
+            harmony.Patch(
+                original: AccessTools.Method(typeof(Pet), nameof(Pet.warpToFarmHouse)),
+                prefix: new HarmonyMethod(typeof(PetOverrides), nameof(PetOverrides.Prefix_warpToFarmHouse))
+            );
         }
 
         private void SpawnCatConsoleCommand(string arg1, string[] arg2)
@@ -47,9 +72,6 @@ namespace StrayCatsStardewValleyMod
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
-
-            // testing: print button presses to the console window
-            //this.Monitor.Log($"Night Cat Mod says: {Game1.player.Name} pressed {e.Button}.", LogLevel.Debug);
         }
 
         private void OnTick(object? sender, UpdateTickedEventArgs updateTickedEventArgs)
@@ -79,7 +101,7 @@ namespace StrayCatsStardewValleyMod
                 }
                 else
                 {
-                    Monitor.Log("Failed to spawn catL list of farmers is empty", LogLevel.Warn);
+                    Log("Failed to spawn cat: list of farmers is empty", LogLevel.Warn);
                     lastCatSpawnTimeGameMinute = Game1.timeOfDay;
                 }
             }
@@ -117,7 +139,7 @@ namespace StrayCatsStardewValleyMod
                 isSleeping = { false },
                 hideFromAnimalSocialMenu = { true },
                 currentLocation = location,
-                modData = { { "isStrayCat", "true" } }
+                modData = { { Constants.ModDataKey, "true" } }
             };
             location.addCharacter(spawnedCat);
             spawnedCat.setTilePosition(new Point(tileX, tileY));
@@ -128,7 +150,7 @@ namespace StrayCatsStardewValleyMod
             lastCatSpawnTimeGameMinute = Game1.timeOfDay;
             
             // debug
-            Monitor.Log($"Spawned {spawnedCat.petType}, breed:{spawnedCat.whichBreed}, name:{spawnedCat.Name} in:{location.Name}",
+            Log($"Spawned {spawnedCat.petType}, breed:{spawnedCat.whichBreed}, name:{spawnedCat.Name} in:{location.Name}",
                 LogLevel.Debug);
         }
 
@@ -153,16 +175,15 @@ namespace StrayCatsStardewValleyMod
             if (!Game1.IsMasterGame)
                 return;
             
-            Monitor.Log("Removing temporary cats...");
+            Log("Removing temporary cats...");
 
             void RemoveIfTemporaryCat(NPC npc, int index)
             {
-                if (!npc.modData.ContainsKey("isStrayCat")) 
+                if (!npc.modData.ContainsKey(Constants.ModDataKey)) 
                     return;
                 
                 npc.currentLocation.characters.RemoveAt(index);
-                npc.Removed();
-                Monitor.Log($"Removing cat: {npc.Name} <{npc.id}>");
+                Log($"Removing cat: {npc.Name} <{npc.id}>");
             }
 
             void RemoveAllTemporaryCats(GameLocation gameLocation)
