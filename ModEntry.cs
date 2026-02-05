@@ -5,7 +5,7 @@ using StardewValley;
 using StardewValley.Characters;
 using StardewValley.GameData.Pets;
 
-namespace BenStardewValleyMod
+namespace StrayCatsStardewValleyMod
 {
     public class ModEntry : StardewModdingAPI.Mod
     {
@@ -116,7 +116,8 @@ namespace BenStardewValleyMod
                 CurrentBehavior = Random.Shared.Next(0,2) > 0 ? Pet.behavior_Walk : Pet.behavior_SitDown,
                 isSleeping = { false },
                 hideFromAnimalSocialMenu = { true },
-                currentLocation = location
+                currentLocation = location,
+                modData = { { "isStrayCat", "true" } }
             };
             location.addCharacter(spawnedCat);
             spawnedCat.setTilePosition(new Point(tileX, tileY));
@@ -156,15 +157,12 @@ namespace BenStardewValleyMod
 
             void RemoveIfTemporaryCat(NPC npc, int index)
             {
-                if (npc is not Pet cat) 
-                    return;
-
-                if (!cat.Name.Contains("Wild Cat", StringComparison.OrdinalIgnoreCase)) 
+                if (!npc.modData.ContainsKey("isStrayCat")) 
                     return;
                 
-                cat.currentLocation.characters.RemoveAt(index);
-                cat.Removed();
-                Monitor.Log($"Removing cat: {cat.Name} <{cat.petId}>");
+                npc.currentLocation.characters.RemoveAt(index);
+                npc.Removed();
+                Monitor.Log($"Removing cat: {npc.Name} <{npc.id}>");
             }
 
             void RemoveAllTemporaryCats(GameLocation gameLocation)
@@ -183,5 +181,7 @@ namespace BenStardewValleyMod
             
             temporaryCats.Clear();
         }
+        
+        
     }
 }

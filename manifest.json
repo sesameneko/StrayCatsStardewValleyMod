@@ -1,9 +1,9 @@
 {
-  "Name": "Night Cats",
+  "Name": "Stray Cats",
   "Author": "galacticrailroad",
   "Version": "0.2.0",
   "Description": "Causes wild cats to appear on the farm and around town at night.",
-  "UniqueID": "ben.benmod",
-  "EntryDll": "BenStardewValleyMod.dll",
+  "UniqueID": "com.galacticrailroad.straycats",
+  "EntryDll": "StrayCatsStardewValleyMod.dll",
   "MinimumApiVersion": "3.0.0"
 }
