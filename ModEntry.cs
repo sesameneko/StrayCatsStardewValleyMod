@@ -30,6 +30,7 @@ namespace StrayCatsStardewValleyMod
             Instance = this;
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.GameLoop.UpdateTicked += this.OnTick;
+            helper.Events.GameLoop.SaveCreating += this.OnSave;
             helper.Events.GameLoop.DayEnding += this.OnDayEnd;
             helper.Events.GameLoop.DayStarted += this.OnDayStart;
             helper.ConsoleCommands.Add(
@@ -40,6 +41,12 @@ namespace StrayCatsStardewValleyMod
             ApplyPatches();
             
             Log($"Night Cat Mod initialized");
+        }
+
+        private void OnSave(object? sender, SaveCreatingEventArgs e)
+        {
+            // prevent temporary cats from being saved
+            RemoveTemporaryCats();
         }
 
         private void ApplyPatches()
@@ -157,17 +164,21 @@ namespace StrayCatsStardewValleyMod
 
         private void OnDayStart(object? sender, DayStartedEventArgs e)
         {
+            // extra protection against leftover
             RemoveTemporaryCats();
         }
 
         private void OnDayEnd(object? sender, DayEndingEventArgs e)
         {
+            // extra protection against leftover
             RemoveTemporaryCats();
         }
 
         protected override void Dispose(bool disposing)
         {
+            // extra protection against leftover
             RemoveTemporaryCats();
+            base.Dispose();
         }
 
         private void RemoveTemporaryCats()
