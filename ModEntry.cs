@@ -21,7 +21,9 @@ namespace StrayCatsStardewValleyMod
         }
         
         private bool debugLogging = false;
+        protected int firstCatAppearTime = 1400;
         protected int catSpawnIntervalGameMinutes = 25;
+        protected bool testMode = false;
         protected int lastCatSpawnTimeGameMinute = 0;
         protected List<NPC> temporaryCats = new List<NPC>();
 
@@ -35,12 +37,19 @@ namespace StrayCatsStardewValleyMod
             helper.Events.GameLoop.DayStarted += this.OnDayStart;
             helper.ConsoleCommands.Add(
                 "wildcat", 
-                "spawns a cat outside the viewport", 
+                "spawns a cat", 
                 SpawnCatConsoleCommand);
+            
+            var config = helper.ReadConfig<ModConfig>();
+            firstCatAppearTime = config.FirstCatAppearTime24Hr;
+            catSpawnIntervalGameMinutes = config.CatAppearIntervalInGameMinutes;
+            testMode = config.TestMode;
+            debugLogging |= testMode;
             
             ApplyPatches();
             
-            Log($"Night Cat Mod initialized");
+            Log($"Stray Cats Mod initialized");
+            Log($"Stray Cats Mod Config: firstCatAppearTime={firstCatAppearTime}, catSpawnIntervalGameMinutes={catSpawnIntervalGameMinutes}, testMode={testMode}");
         }
 
         private void OnSave(object? sender, SaveCreatingEventArgs e)
@@ -61,16 +70,17 @@ namespace StrayCatsStardewValleyMod
 
         private void SpawnCatConsoleCommand(string arg1, string[] arg2)
         {
-            if (int.TryParse(arg1, out int count))
+            
+            if (arg2.Length > 0 && int.TryParse(arg2[0], out int count))
             {
-                for (int i = 0; i < count; i++)
-                {
+                // spawn many cats by passing in a number
+                for (int i = 0; i < count; i++) 
                     SpawnRandomCatOutsideViewport(Game1.player);
-                }
             }
             else
             {
-                SpawnRandomCatOutsideViewport(Game1.player);
+                // spawn cat next to player
+                SpawnRandomCat(Game1.player.currentLocation,Game1.player.TilePoint.X+1,Game1.player.TilePoint.Y);
             }
         }
 
@@ -96,14 +106,16 @@ namespace StrayCatsStardewValleyMod
             {
                 lastCatSpawnTimeGameMinute = 0;
             }
-            bool isNight = Game1.timeOfDay > 1400;
-            bool shouldSpawn = isNight && Game1.timeOfDay - lastCatSpawnTimeGameMinute > catSpawnIntervalGameMinutes;
+            bool isTimeForCats = Game1.timeOfDay > firstCatAppearTime;
+            bool shouldSpawn = isTimeForCats && Game1.timeOfDay - lastCatSpawnTimeGameMinute > catSpawnIntervalGameMinutes;
             if (shouldSpawn)
             {
                 List<Farmer> farmers = Game1.getAllFarmers().ToList();
                 if (farmers.Count > 0)
                 {
+                    // select random farmer
                     var farmer = farmers[Random.Shared.Next(0, farmers.Count)];
+                    // spawn a cat near that farmer
                     SpawnRandomCatOutsideViewport(farmer);
                 }
                 else
@@ -120,8 +132,9 @@ namespace StrayCatsStardewValleyMod
             var location = farmer.currentLocation;
             for (int index = 0; index < 15; ++index) // try 15 times
             {
-                var randomTile = location.getRandomTile();
-                if (Utility.isOnScreen(Utility.Vector2ToPoint(randomTile), 64, (GameLocation)farmer.currentLocation))
+                var randomTile = testMode ? farmer.Tile + Vector2.UnitX * 2 : location.getRandomTile();
+                bool isOnScreen = Utility.isOnScreen(Utility.Vector2ToPoint(randomTile), 64, farmer.currentLocation); 
+                if (!testMode && isOnScreen)
                     randomTile.X -= (float)(Game1.viewport.Width / 64);
                 if (location.CanItemBePlacedHere(randomTile) && location.CanSpawnCharacterHere(randomTile))
                 {
@@ -172,13 +185,6 @@ namespace StrayCatsStardewValleyMod
         {
             // extra protection against leftover
             RemoveTemporaryCats();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            // extra protection against leftover
-            RemoveTemporaryCats();
-            base.Dispose();
         }
 
         private void RemoveTemporaryCats()
